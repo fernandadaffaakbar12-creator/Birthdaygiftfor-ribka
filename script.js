@@ -175,7 +175,7 @@
         const pinPopupClose = document.getElementById('pin-popup-close');
 
         // DEFAULT PIN: Silakan ubah angka ini jika ingin PIN lain
-        const SECRET_PIN = "2104";
+        const SECRET_PIN = "100326";
 
         let pinAttempt = 0;
         let popupTimeout = null;
@@ -281,7 +281,7 @@
 
         if (pinInput) {
             pinInput.addEventListener('input', function () {
-                if (pinInput.value.length === 4) {
+                if (pinInput.value.length === 6) {
                     // Delay sedikit agar digit terakhir terasa diketik
                     setTimeout(() => {
                         if (pinInput.value === SECRET_PIN) {
@@ -372,7 +372,7 @@
 // 1. FUNGSI FOTO MEMBESAR (LIGHTBOX) & PEMUTAR MUSIK
 // ==========================================
 document.addEventListener("DOMContentLoaded", function () {
-    const daftarFoto = document.querySelectorAll('.gallery-scroll img, .polaroid, .planet-card');
+    const daftarFoto = document.querySelectorAll('.gallery-scroll img, .polaroid');
     const modal = document.getElementById('image-modal');
     const modalImg = document.getElementById('modal-img');
     const modalIframe = document.getElementById('modal-iframe'); // Panggil elemen iframe
@@ -388,45 +388,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 modalIframe.style.display = 'none'; // Sembunyikan musik sebagai default
                 modalIframe.src = ""; // Kosongkan lagu sebelumnya
 
-                // A. JIKA YANG DIKLIK ADALAH KARTU LAGU/VIDEO (Punya data-embed)
-                if (this.classList.contains('planet-card') && this.hasAttribute('data-embed')) {
-                    modalImg.style.display = 'none'; // Sembunyikan foto
-                    modalIframe.style.display = 'block'; // Tampilkan alat musik/video
-
-                    const embedUrl = this.getAttribute('data-embed');
-                    modalIframe.src = embedUrl; // Masukkan link
-
-                    // Hapus class lama
-                    modalIframe.classList.remove('iframe-spotify', 'iframe-youtube', 'iframe-facebook');
-
-                    // Deteksi platform untuk penyesuaian rasio (16:9 untuk YouTube, Kotak untuk Spotify, 9:16 untuk Facebook)
-                    if (embedUrl.includes('youtube.com') || embedUrl.includes('youtu.be')) {
-                        modalIframe.classList.add('iframe-youtube');
-                    } else if (embedUrl.includes('spotify.com')) {
-                        modalIframe.classList.add('iframe-spotify');
-                    } else if (embedUrl.includes('facebook.com')) {
-                        modalIframe.classList.add('iframe-facebook');
-                    }
-
-                    const customCaption = this.getAttribute('data-caption');
-                    const teksCaption = customCaption ? customCaption : this.querySelector('.planet-caption').innerText;
-                    if (modalCaption) modalCaption.innerText = teksCaption;
-                }
-                // B. JIKA YANG DIKLIK ADALAH KARTU 3D BIASA (Bukan Lagu)
-                else if (this.classList.contains('planet-card')) {
-                    modalImg.src = this.querySelector('img').src;
-                    modalImg.style.aspectRatio = "3 / 4";
-
-                    const customCaption = this.getAttribute('data-caption');
-                    const teksCaption = customCaption ? customCaption : this.querySelector('.planet-caption').innerText;
-                    if (modalCaption) modalCaption.innerText = teksCaption;
-                }
-                // C. JIKA YANG DIKLIK ADALAH POLAROID
-                else if (this.classList.contains('polaroid')) {
+                // A. JIKA YANG DIKLIK ADALAH POLAROID
+                if (this.classList.contains('polaroid')) {
                     modalImg.src = this.querySelector('img').src;
                     modalImg.style.aspectRatio = "1 / 1";
                 }
-                // D. JIKA YANG DIKLIK ADALAH GALERI CINTA
+                // B. JIKA YANG DIKLIK ADALAH GALERI CINTA ATAU LAINNYA
                 else {
                     modalImg.src = this.src;
                     modalImg.style.aspectRatio = "9 / 16";
@@ -1224,3 +1191,195 @@ function buatConfetti() {
     // Gelombang 3: Hujan confetti lanjutan
     setTimeout(() => burstWave(40, 0), 2000);
 }
+
+// ==========================================
+// KARTU FOTO KATA-KATA (SWIPE DECK)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const deck = document.getElementById('quote-card-deck');
+    if (!deck) return;
+
+    const allCards = Array.from(deck.querySelectorAll('.quote-card'));
+    const counter = document.getElementById('swipe-counter');
+    const TOTAL = allCards.length;
+    const SWIPE_THRESHOLD = 80; // px minimum untuk swipe
+    const CLICK_THRESHOLD = 8;  // px max movement untuk dianggap klik
+
+    let currentFront = 0; // index kartu yang sekarang paling depan
+
+    // ---- Inisialisasi posisi stack ----
+    function updateStack() {
+        let stackPos = 0;
+        for (let i = 0; i < TOTAL; i++) {
+            const card = allCards[i];
+            if (card.classList.contains('swiped-left') || card.classList.contains('swiped-right')) {
+                card.removeAttribute('data-stack');
+                continue;
+            }
+            card.setAttribute('data-stack', Math.min(stackPos, 4));
+            stackPos++;
+        }
+
+        // Update counter
+        const remaining = TOTAL - currentFront;
+        if (counter) {
+            if (remaining > 0) {
+                counter.textContent = 'Foto ' + (currentFront + 1) + ' dari ' + TOTAL;
+            } else {
+                counter.textContent = '';
+            }
+        }
+
+        // Cek apakah semua sudah habis
+        if (remaining <= 0) {
+            showEmptyState();
+        }
+    }
+
+    function showEmptyState() {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'quote-deck-empty';
+        emptyDiv.innerHTML = '✨ Kamu sudah melihat semua foto! ✨<br><button class="reset-btn" onclick="resetQuoteDeck()">Lihat Lagi</button>';
+        deck.appendChild(emptyDiv);
+    }
+
+    // Fungsi reset global
+    window.resetQuoteDeck = function () {
+        // Hapus empty state
+        const emptyState = deck.querySelector('.quote-deck-empty');
+        if (emptyState) emptyState.remove();
+
+        // Reset semua kartu
+        allCards.forEach(card => {
+            card.classList.remove('swiped-left', 'swiped-right', 'dragging-left', 'dragging-right');
+            card.style.transform = '';
+            card.style.transition = '';
+        });
+
+        currentFront = 0;
+        updateStack();
+    };
+
+    // ---- Swipe / Drag Logic ----
+    function setupSwipe(card) {
+        let startX = 0;
+        let startY = 0;
+        let currentX = 0;
+        let isDragging = false;
+        let totalMovement = 0;
+
+        function onStart(e) {
+            // Hanya kartu paling depan yang bisa di-swipe
+            if (card.getAttribute('data-stack') !== '0') return;
+
+            isDragging = true;
+            totalMovement = 0;
+            const point = e.touches ? e.touches[0] : e;
+            startX = point.clientX;
+            startY = point.clientY;
+
+            card.style.transition = 'none';
+        }
+
+        function onMove(e) {
+            if (!isDragging) return;
+
+            const point = e.touches ? e.touches[0] : e;
+            currentX = point.clientX - startX;
+            const currentY = point.clientY - startY;
+            totalMovement = Math.abs(currentX) + Math.abs(currentY);
+
+            // Kalau gerak horizontal lebih dominan, cegah scroll
+            if (Math.abs(currentX) > Math.abs(currentY) && Math.abs(currentX) > 10) {
+                e.preventDefault();
+            }
+
+            const rotation = currentX * 0.08;
+            card.style.transform = 'translateX(' + currentX + 'px) rotate(' + rotation + 'deg) scale(1)';
+
+            // Tampilkan indikator arah
+            card.classList.remove('dragging-left', 'dragging-right');
+            if (currentX < -30) {
+                card.classList.add('dragging-left');
+            } else if (currentX > 30) {
+                card.classList.add('dragging-right');
+            }
+        }
+
+        function onEnd(e) {
+            if (!isDragging) return;
+            isDragging = false;
+
+            card.classList.remove('dragging-left', 'dragging-right');
+
+            // Jika gerakan sangat kecil → dianggap klik (buka lightbox)
+            if (totalMovement < CLICK_THRESHOLD) {
+                card.style.transition = '';
+                card.style.transform = '';
+                openQuoteLightbox(card);
+                return;
+            }
+
+            // Cek apakah cukup jauh untuk swipe
+            if (Math.abs(currentX) > SWIPE_THRESHOLD) {
+                // Swipe berhasil!
+                if (currentX < 0) {
+                    card.classList.add('swiped-left');
+                } else {
+                    card.classList.add('swiped-right');
+                }
+
+                currentFront++;
+
+                // Delay sebelum update stack agar animasi swipe selesai dulu
+                setTimeout(() => {
+                    updateStack();
+                }, 350);
+            } else {
+                // Tidak cukup jauh, kembali ke posisi semula
+                card.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                card.style.transform = '';
+            }
+        }
+
+        // Mouse events
+        card.addEventListener('mousedown', onStart);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+
+        // Touch events
+        card.addEventListener('touchstart', onStart, { passive: true });
+        card.addEventListener('touchmove', onMove, { passive: false });
+        card.addEventListener('touchend', onEnd);
+    }
+
+    // ---- Lightbox untuk quote card ----
+    function openQuoteLightbox(card) {
+        const modal = document.getElementById('image-modal');
+        const modalImg = document.getElementById('modal-img');
+        const modalIframe = document.getElementById('modal-iframe');
+        const modalCaption = document.getElementById('modal-caption');
+
+        if (!modal || !modalImg) return;
+
+        const img = card.querySelector('img');
+        if (!img) return;
+
+        if (modalCaption) modalCaption.innerText = '';
+        modalImg.style.display = 'block';
+        if (modalIframe) {
+            modalIframe.style.display = 'none';
+            modalIframe.src = '';
+        }
+
+        modalImg.src = img.src;
+        modalImg.style.aspectRatio = '3 / 4';
+        modal.classList.add('show-modal');
+    }
+
+    // Setup swipe untuk semua kartu
+    allCards.forEach(card => setupSwipe(card));
+
+    // Inisialisasi stack awal
+    updateStack();
+});
